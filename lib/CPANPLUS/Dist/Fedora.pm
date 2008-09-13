@@ -17,26 +17,21 @@ use Cwd;
 use CPANPLUS::Error; # imported subs: error(), msg()
 use File::Basename;
 use File::Copy      qw[ copy ];
-use File::Slurp     qw[ slurp ];
 use IPC::Cmd        qw[ run can_run ];
 use List::Util      qw[ first ];
 use Pod::POM;
 use Pod::POM::View::Text;
 use POSIX qw[ strftime ];
-use Readonly;
 use Text::Wrap;
 use Template;
 
-our $VERSION = '0.0.2';
+our $VERSION = '0.0.3';
 
-Readonly my $RPMDIR => do { chomp(my $d=qx[ rpm --eval %_topdir ]); $d; };
-Readonly my $PACKAGER => 
-    do { my $d = `rpm --eval '%{packager}'`; chomp $d; $d };
-Readonly my $DEFAULT_LICENSE => 'CHECK(GPL+ or Artistic)';
-Readonly my $DIR => cwd;
-
-# Dealing with DATA gets increasingly messy, IMHO
-Readonly my $SPEC_TEMPLATE => <<'END_SPEC';
+sub _get_spec_template
+{
+    # Dealing with DATA gets increasingly messy, IMHO
+    # So we're going to use the Template Toolkit instead
+    return <<'END_SPEC';
 
 Name:       [% status.rpmname %] 
 Version:    [% status.distvers %] 
@@ -105,6 +100,7 @@ rm -rf %{buildroot}
 - initial Fedora packaging
 - generated with cpan2dist (CPANPLUS::Dist::Fedora version [% packagervers %])
 END_SPEC
+}
 
 #--
 # class methods
@@ -165,6 +161,9 @@ sub init {
           ]
     );
 
+    # This is done to initialise it.
+    $self->_get_current_dir();
+
     return 1;
 }
 
@@ -194,9 +193,9 @@ sub prepare {
     $status->distvers($module->package_version);
     $status->summary(_module_summary($module));
     $status->description(_module_description($module));
-    $status->license(_module_license($module));
+    $status->license($self->_module_license($module));
     #$status->disttop($module->name=~ /([^:]+)::/);
-    my $dir = $status->rpmdir($DIR);
+    my $dir = $status->rpmdir($self->_get_current_dir());
     $status->rpmvers(1);
 
     # Cache files
@@ -248,16 +247,18 @@ sub prepare {
 
     # Prepare our template
     my $tmpl = Template->new({ EVAL_PERL => 1 });
+
+    my $spec_template = $self->_get_spec_template();
     
     # Process template into spec
     $tmpl->process(
-        \$SPEC_TEMPLATE, 
+        \$spec_template, 
         {
             status    => $status,
             module    => $module,
             buildreqs => $buildreqs,
             date      => strftime("%a %b %d %Y", localtime),
-            packager  => $PACKAGER,
+            packager  => $self->_get_packager(),
             docfiles  => join(' ', @docfiles),
 
             packagervers => $VERSION,
@@ -389,6 +390,7 @@ sub install {
 # 
 sub _has_been_built {
     my ($self, $name, $vers) = @_;
+    my $RPMDIR = $self->_get_RPMDIR();
     my $pkg = ( sort glob "$RPMDIR/RPMS/*/$name-$vers-*.rpm" )[-1];
     return $pkg;
     # FIXME: should we check cooker?
@@ -401,8 +403,24 @@ sub _has_been_built {
 sub _is_module_build_compat {
     my ($module) = @_;
     my $makefile = $module->_status->extract . '/Makefile.PL';
-    my $content  = slurp($makefile);
-    return $content =~ /Module::Build::Compat/;
+
+    open my $mk_fh, "<", $makefile;
+
+    my $found = 0;
+
+    LINES:
+    while (my $line = <$mk_fh>)
+    {
+        if ($line =~ /Module::Build::Compat/)
+        {
+            $found = 1;
+            last LINES;
+        }
+    }
+
+    close($mk_fh);
+
+    return $found;
 }
 
 
@@ -421,9 +439,20 @@ sub _mk_pkg_name {
 
 # determine the module license. 
 #
-# FIXME! for now just return $DEFAULT_LICENSE
+# FIXME! for now just return the default licence
 
-sub _module_license { return $DEFAULT_LICENSE; }
+sub _module_license
+{
+    my $self = shift;
+    my $module = shift;
+
+    return $self->_get_default_license();
+}
+
+sub _get_default_license
+{ 
+    return 'CHECK(GPL+ or Artistic)';
+}
 
 #
 # my $description = _module_description($module);
@@ -465,8 +494,8 @@ sub _module_description {
 #
 # my $summary = _module_summary($module);
 #
-# given a cpanplus::module, return its registered description (if any)
-# or try to extract it from the embedded pod in the extracted files.
+# Given a CPANPLUS::Module, return its registered description (if any)
+# or try to extract it from the embedded POD in the extracted files.
 #
 sub _module_summary {
     my ($module) = @_;
@@ -498,6 +527,48 @@ sub _module_summary {
     }
 
     return 'no summary found';
+}
+
+sub _get_RPMDIR
+{
+    my $self = shift;
+
+    # Memoize it.
+    if (!defined($self->{_RPMDIR}))
+    {
+        chomp(my $d=qx[ rpm --eval %_topdir ]);
+        $self->{_RPMDIR} = $d;
+    }
+
+    return $self->{_RPMDIR};
+}
+
+sub _get_packager
+{
+    my $self = shift;
+
+    # Memoize it.
+    if (!defined($self->{_packager}))
+    {
+        my $d = `rpm --eval '%{packager}'`; 
+        chomp $d;
+        $self->{_packager} = $d;
+    }
+
+    return $self->{_packager};
+}
+
+sub _get_current_dir
+{
+    my $self = shift;
+
+    # Memoize it.
+    if (!defined($self->{_current_dir}))
+    {
+        $self->{_current_dir} = cwd();
+    }
+
+    return $self->{_current_dir};
 }
 
 1;
