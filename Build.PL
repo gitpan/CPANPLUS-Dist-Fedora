@@ -10,9 +10,12 @@
 
 use strict;
 use warnings;
-use Module::Build;
 
-my $builder = Module::Build->new (
+use lib './inc';
+
+use Test::Run::Builder;
+
+my $builder = Test::Run::Builder->new (
     module_name         => 'CPANPLUS::Dist::Fedora',
     dist_author         => 'Shlomi Fish <shlomif@cpan.org>',
     license             => 'perl',
@@ -21,9 +24,11 @@ my $builder = Module::Build->new (
         'CPANPLUS-Dist-Fedora-*', 'MANIFEST.bak',
         map { ( '*/' x $_ ) . '*~' } 0..5 ],
     script_files   => [ ],
+    configure_requires => {
+        'Module::Build' => '0.36',
+    },
     build_requires => {
         'Test::More'           => 0,
-        'perl'                 => '5.008',
     },
     requires       => {
         'CPANPLUS'             => 0,
