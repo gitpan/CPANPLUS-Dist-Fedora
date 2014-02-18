@@ -4,7 +4,17 @@
       "Shlomi Fish <shlomif@cpan.org>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "Module::Build version 0.4005, CPAN::Meta::Converter version 2.120921",
+   "generated_by" : "Module::Build version 0.4205",
+   "keywords" : [
+      "RHEL",
+      "centos",
+      "cpan",
+      "cpanplus",
+      "fedora",
+      "perl",
+      "rhel",
+      "rpm"
+   ],
    "license" : [
       "perl_5"
    ],
@@ -48,14 +58,17 @@
    "provides" : {
       "CPANPLUS::Dist::Fedora" : {
          "file" : "lib/CPANPLUS/Dist/Fedora.pm",
-         "version" : "v0.0.4"
+         "version" : "v0.0.5"
       }
    },
    "release_status" : "stable",
    "resources" : {
       "license" : [
          "http://dev.perl.org/licenses/"
-      ]
+      ],
+      "repository" : {
+         "url" : "https://bitbucket.org/shlomif/cpanplus-dist-backends"
+      }
    },
-   "version" : "v0.0.4"
+   "version" : "v0.0.5"
 }

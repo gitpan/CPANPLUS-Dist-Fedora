@@ -25,7 +25,7 @@ use POSIX qw[ strftime ];
 use Text::Wrap;
 use Template;
 
-our $VERSION = '0.0.4';
+our $VERSION = '0.0.5';
 
 sub _get_spec_template
 {
@@ -43,10 +43,12 @@ Source:     http://search.cpan.org/CPAN/[% module.path %]/[% status.distname %]-
 Url:        http://search.cpan.org/dist/[% status.distname %]
 BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires:  perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
-[% IF status.is_noarch %]BuildArch:  noarch[% END -%]
-
-BuildRequires: perl(ExtUtils::MakeMaker)
+[% IF status.is_noarch %]BuildArch:  noarch[% END %]
 [% brs = buildreqs; FOREACH br = brs.keys.sort -%]
+Requires: perl([% br %])[% IF (brs.$br != 0) %] >= [% brs.$br %][% END %]
+[% END -%]
+BuildRequires: perl(ExtUtils::MakeMaker)
+[% FOREACH br = brs.keys.sort -%]
 BuildRequires: perl([% br %])[% IF (brs.$br != 0) %] >= [% brs.$br %][% END %]
 [% END -%]
 
@@ -60,9 +62,9 @@ BuildRequires: perl([% br %])[% IF (brs.$br != 0) %] >= [% brs.$br %][% END %]
 
 %build
 [% IF (!status.is_noarch) -%]
-%{__perl} Makefile.PL INSTALLDIRS=vendor OPTIMIZE="%{optflags}"
+%{__perl} Makefile.PL INSTALLDIRS=vendor OPTIMIZE="%{optflags}" INSTALLVENDORLIB=%{perl_vendorlib} INSTALLVENDORMAN3DIR=%{_mandir}/man3
 [% ELSE -%]
-%{__perl} Makefile.PL INSTALLDIRS=vendor
+%{__perl} Makefile.PL INSTALLDIRS=vendor INSTALLVENDORLIB=%{perl_vendorlib} INSTALLVENDORMAN3DIR=%{_mandir}/man3
 [% END -%]
 make %{?_smp_mflags}
 
