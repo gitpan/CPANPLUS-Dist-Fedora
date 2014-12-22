@@ -25,7 +25,7 @@ use POSIX qw[ strftime ];
 use Text::Wrap;
 use Template;
 
-our $VERSION = '0.0.5';
+our $VERSION = '0.0.6';
 
 sub _get_spec_template
 {
@@ -115,7 +115,7 @@ END_SPEC
 #
 sub format_available {
     # Check Fedora release file
-    if ( ! -f '/etc/fedora-release' ) {
+    if ( not ( -f '/etc/fedora-release' or -f '/etc/redhat-release') ) {
         error( 'Not on a Fedora system' );
         return;
     }
